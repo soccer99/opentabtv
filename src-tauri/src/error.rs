@@ -47,6 +47,9 @@ pub enum TabloError {
 
     #[error("Configuration error: {0}")]
     ConfigError(String),
+
+    #[error("Cast error: {0}")]
+    CastError(String),
 }
 
 /// Result type alias for Tablo operations

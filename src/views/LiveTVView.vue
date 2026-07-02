@@ -6,15 +6,18 @@ import { formatChannelNumber } from "@/utils/format";
 import { useDevicesStore } from "@/stores/devices";
 import { useSettingsStore } from "@/stores/settings";
 import { useDevicePreferencesStore } from "@/stores/devicePreferences";
+import { useCastingStore } from "@/stores/casting";
 import { useMediaPlayer } from "@/composables/useMediaPlayer";
 import { useToast } from "@/composables/useToast";
 import NoDeviceConnected from "@/components/NoDeviceConnected.vue";
 import FavoriteButton from "@/components/FavoriteButton.vue";
+import type { CastDevice } from "@/types";
 
 const channelsStore = useChannelsStore();
 const devicesStore = useDevicesStore();
 const settingsStore = useSettingsStore();
 const devicePreferencesStore = useDevicePreferencesStore();
+const castingStore = useCastingStore();
 const toast = useToast();
 
 // Video element ref
@@ -51,6 +54,65 @@ const playingInVlc = ref(false);
 // VLC multi-stream support
 const activeVlcStreams = computed(() => channelsStore.activeVlcStreams);
 const vlcStreamCount = computed(() => channelsStore.vlcStreamCount);
+
+// Casting UI state
+const showCastMenu = ref(false);
+const castMenuRef = ref<HTMLElement | null>(null);
+
+// Handle clicking outside cast menu to close it
+function handleClickOutside(e: MouseEvent) {
+  if (castMenuRef.value && !castMenuRef.value.contains(e.target as Node)) {
+    showCastMenu.value = false;
+  }
+}
+
+// Toggle cast menu and discover devices
+async function toggleCastMenu() {
+  showCastMenu.value = !showCastMenu.value;
+  if (showCastMenu.value && castingStore.availableDevices.length === 0) {
+    await castingStore.discoverDevices();
+  }
+}
+
+// Refresh cast devices
+async function refreshCastDevices() {
+  await castingStore.discoverDevices();
+  if (castingStore.availableDevices.length === 0) {
+    toast.info("No cast devices found on your network");
+  }
+}
+
+// Cast to selected device
+async function castToDevice(device: CastDevice) {
+  const session = channelsStore.currentStream;
+  if (!session) {
+    toast.error("No active stream to cast");
+    return;
+  }
+
+  showCastMenu.value = false;
+
+  const success = await castingStore.castToDevice(
+    device,
+    session.playlistUrl,
+    selectedChannel.value?.callSign
+  );
+
+  if (success) {
+    toast.success(`Casting to ${device.name}`);
+  } else {
+    toast.error(castingStore.lastError || "Failed to cast");
+  }
+}
+
+// Stop casting
+async function stopCasting() {
+  const success = await castingStore.stopCasting();
+  if (success) {
+    toast.success("Stopped casting");
+  }
+  showCastMenu.value = false;
+}
 
 // Handle channel selection
 async function selectChannel(channel: Channel) {
@@ -128,14 +190,7 @@ watch(
   { immediate: true }
 );
 
-// Cleanup on unmount
-onUnmounted(() => {
-  channelsStore.stopStream();
-  channelsStore.stopAllVlcStreams();
-  if (controlsTimeout.value) {
-    clearTimeout(controlsTimeout.value);
-  }
-});
+// Cleanup on unmount - consolidated into single hook below
 
 // Keyboard shortcuts
 function handleKeydown(e: KeyboardEvent) {
@@ -173,10 +228,28 @@ function handleKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   window.addEventListener("keydown", handleKeydown);
+  document.addEventListener("click", handleClickOutside);
 });
 
+// Consolidated cleanup - all cleanup logic in one place
 onUnmounted(() => {
+  // Remove event listeners
   window.removeEventListener("keydown", handleKeydown);
+  document.removeEventListener("click", handleClickOutside);
+
+  // Clear timeout
+  if (controlsTimeout.value) {
+    clearTimeout(controlsTimeout.value);
+  }
+
+  // Stop streams
+  channelsStore.stopStream();
+  channelsStore.stopAllVlcStreams();
+
+  // Stop casting (fire and forget - component is being destroyed)
+  if (castingStore.isCasting) {
+    void castingStore.stopCasting();
+  }
 });
 </script>
 
@@ -466,6 +539,117 @@ onUnmounted(() => {
                 />
 
                 <div class="flex-1" />
+
+                <!-- Cast button -->
+                <div class="relative" ref="castMenuRef">
+                  <button
+                    @click.stop="toggleCastMenu"
+                    class="p-2 hover:bg-white/20 rounded-lg transition-colors relative"
+                    :class="{ 'text-accent': castingStore.isCasting }"
+                    :title="castingStore.isCasting ? `Casting to ${castingStore.castDeviceName}` : 'Cast to device'"
+                  >
+                    <!-- Cast icon -->
+                    <svg
+                      class="w-6 h-6"
+                      :class="castingStore.isCasting ? 'text-accent' : 'text-white'"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
+                      />
+                    </svg>
+                    <!-- Casting indicator dot -->
+                    <span
+                      v-if="castingStore.isCasting"
+                      class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-accent rounded-full animate-pulse"
+                    />
+                  </button>
+
+                  <!-- Cast device menu -->
+                  <div
+                    v-if="showCastMenu"
+                    class="absolute bottom-full right-0 mb-2 w-64 bg-surface-1 border border-white/10 rounded-xl shadow-xl overflow-hidden z-50"
+                    @click.stop
+                  >
+                    <div class="p-3 border-b border-white/10">
+                      <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-text-primary">Cast to</span>
+                        <button
+                          @click="refreshCastDevices"
+                          class="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                          :class="{ 'animate-spin': castingStore.isDiscovering }"
+                          :disabled="castingStore.isDiscovering"
+                        >
+                          <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Currently casting -->
+                    <div
+                      v-if="castingStore.isCasting"
+                      class="p-3 bg-accent/10 border-b border-white/10"
+                    >
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                          <span class="w-2 h-2 bg-accent rounded-full animate-pulse" />
+                          <span class="text-sm text-text-primary">{{ castingStore.castDeviceName }}</span>
+                        </div>
+                        <button
+                          @click="stopCasting"
+                          class="text-xs text-error hover:underline"
+                        >
+                          Stop
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Device list -->
+                    <div class="max-h-48 overflow-y-auto">
+                      <div
+                        v-if="castingStore.isDiscovering"
+                        class="p-4 text-center"
+                      >
+                        <svg class="w-5 h-5 text-text-muted animate-spin mx-auto mb-2" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <p class="text-xs text-text-muted">Searching for devices...</p>
+                      </div>
+
+                      <div
+                        v-else-if="castingStore.availableDevices.length === 0"
+                        class="p-4 text-center"
+                      >
+                        <p class="text-sm text-text-muted">No devices found</p>
+                        <p class="text-xs text-text-muted mt-1">Make sure your Chromecast is on the same network</p>
+                      </div>
+
+                      <button
+                        v-else
+                        v-for="device in castingStore.availableDevices"
+                        :key="device.id"
+                        @click="castToDevice(device)"
+                        class="w-full p-3 text-left hover:bg-white/5 transition-colors flex items-center gap-3"
+                      >
+                        <svg class="w-5 h-5 text-text-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <div class="min-w-0">
+                          <p class="text-sm text-text-primary truncate">{{ device.name }}</p>
+                          <p class="text-xs text-text-muted">{{ device.model || 'Chromecast' }}</p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
                 <!-- Fullscreen -->
                 <button

@@ -60,4 +60,5 @@ os_info = "3"
 # Casting support (Chromecast + DLNA)
 rust_cast = "0.19"
 mdns-sd = "0.11"
+flume = "0.11"
 

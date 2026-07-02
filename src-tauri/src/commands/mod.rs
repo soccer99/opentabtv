@@ -2,6 +2,7 @@
 
 use tauri::State;
 
+use crate::casting::{CastDevice, CastDeviceType};
 use crate::error::TabloError;
 use crate::tablo::cloud::LighthouseClient;
 use crate::tablo::config::TabloConfig;
@@ -646,5 +647,66 @@ pub fn get_system_info() -> SystemInfo {
         os: std::env::consts::OS.to_string(),
         arch: std::env::consts::ARCH.to_string(),
         os_version: os_info::get().version().to_string(),
+    }
+}
+
+// ============================================================================
+// Casting Commands
+// ============================================================================
+
+/// Discover all castable devices (Chromecast)
+#[tauri::command]
+pub async fn discover_cast_devices(timeout_secs: Option<u64>) -> Result<Vec<CastDevice>, TabloError> {
+    let timeout = timeout_secs.unwrap_or(5);
+
+    let devices = crate::casting::discover_chromecasts(timeout).await?;
+
+    tracing::info!("Total cast devices found: {}", devices.len());
+    Ok(devices)
+}
+
+/// Cast a stream to a device
+#[tauri::command]
+pub fn cast_to_device(
+    device: CastDevice,
+    media_url: String,
+    title: Option<String>,
+) -> Result<(), TabloError> {
+    match device.device_type {
+        CastDeviceType::Chromecast => {
+            crate::casting::cast_to_chromecast(&device, &media_url, title.as_deref())
+        }
+    }
+}
+
+/// Stop casting to a device
+#[tauri::command]
+pub fn stop_cast(device: CastDevice) -> Result<(), TabloError> {
+    match device.device_type {
+        CastDeviceType::Chromecast => crate::casting::stop_chromecast(&device),
+    }
+}
+
+/// Pause casting on a device
+#[tauri::command]
+pub fn pause_cast(device: CastDevice) -> Result<(), TabloError> {
+    match device.device_type {
+        CastDeviceType::Chromecast => crate::casting::pause_chromecast(&device),
+    }
+}
+
+/// Resume casting on a device
+#[tauri::command]
+pub fn resume_cast(device: CastDevice) -> Result<(), TabloError> {
+    match device.device_type {
+        CastDeviceType::Chromecast => crate::casting::resume_chromecast(&device),
+    }
+}
+
+/// Set volume on a cast device (0.0 to 1.0)
+#[tauri::command]
+pub fn set_cast_volume(device: CastDevice, volume: f32) -> Result<(), TabloError> {
+    match device.device_type {
+        CastDeviceType::Chromecast => crate::casting::set_chromecast_volume(&device, volume),
     }
 }

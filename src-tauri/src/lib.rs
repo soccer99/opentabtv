@@ -2,6 +2,7 @@
 //!
 //! A Tauri application for streaming live TV and recordings from Tablo DVR devices.
 
+mod casting;
 mod commands;
 mod error;
 mod tablo;
@@ -59,6 +60,13 @@ pub fn run() {
             commands::open_in_vlc,
             // System info
             commands::get_system_info,
+            // Casting commands
+            commands::discover_cast_devices,
+            commands::cast_to_device,
+            commands::stop_cast,
+            commands::pause_cast,
+            commands::resume_cast,
+            commands::set_cast_volume,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -125,3 +125,24 @@ export interface ApiResult<T> {
   data?: T;
   error?: ApiError;
 }
+
+// Casting types
+export type CastDeviceType = "chromecast";
+
+export interface CastDevice {
+  id: string;
+  name: string;
+  ip: string;
+  port: number;
+  deviceType: CastDeviceType;
+  model?: string;
+}
+
+export type CastState = "idle" | "discovering" | "connecting" | "casting";
+
+export interface CastSession {
+  device: CastDevice;
+  mediaUrl: string;
+  title?: string;
+  isPlaying: boolean;
+}
