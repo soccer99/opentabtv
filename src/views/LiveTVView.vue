@@ -45,33 +45,60 @@ const favoriteChannels = computed(() => {
 
 const hasFavorites = computed(() => favoriteChannels.value.length > 0);
 
-// Track if playing in VLC
+// Track if playing in VLC (for current selection indicator)
 const playingInVlc = ref(false);
+
+// VLC multi-stream support
+const activeVlcStreams = computed(() => channelsStore.activeVlcStreams);
+const vlcStreamCount = computed(() => channelsStore.vlcStreamCount);
 
 // Handle channel selection
 async function selectChannel(channel: Channel) {
-  const session = await channelsStore.startStream(channel);
-  if (session) {
-    // Check if user prefers VLC
-    if (settingsStore.useVlc) {
+  // Check if user prefers VLC - use multi-stream mode
+  if (settingsStore.useVlc) {
+    const vlcSession = await channelsStore.startVlcStream(channel);
+    if (vlcSession) {
       try {
         await invoke("open_in_vlc", {
-          url: session.playlistUrl,
+          url: vlcSession.playlistUrl,
           vlcPath: settingsStore.vlcPath || undefined,
         });
         playingInVlc.value = true;
-        toast.success(`Opening ${channel.callSign} in VLC`);
+        channelsStore.selectChannel(channel);
+        toast.success(`Opening ${channel.callSign} in VLC (${vlcStreamCount.value} stream${vlcStreamCount.value > 1 ? 's' : ''} active)`);
       } catch (e) {
-        // Fall back to built-in player if VLC fails
+        // Remove the VLC session we just created since VLC failed
+        await channelsStore.stopVlcStream(vlcSession.sessionId);
+        // Fall back to built-in player
         toast.error(`VLC failed: ${e}. Using built-in player.`);
         playingInVlc.value = false;
-        loadSource(session.playlistUrl);
+        const session = await channelsStore.startStream(channel);
+        if (session) {
+          loadSource(session.playlistUrl);
+        }
       }
-    } else {
+    }
+  } else {
+    // Built-in player mode - single stream only
+    const session = await channelsStore.startStream(channel);
+    if (session) {
       playingInVlc.value = false;
       loadSource(session.playlistUrl);
     }
   }
+}
+
+// Stop a specific VLC stream
+async function stopVlcStream(sessionId: string) {
+  await channelsStore.stopVlcStream(sessionId);
+  toast.success("VLC stream stopped");
+}
+
+// Stop all VLC streams
+async function stopAllVlcStreams() {
+  await channelsStore.stopAllVlcStreams();
+  playingInVlc.value = false;
+  toast.success("All VLC streams stopped");
 }
 
 // Auto-hide controls
@@ -104,6 +131,7 @@ watch(
 // Cleanup on unmount
 onUnmounted(() => {
   channelsStore.stopStream();
+  channelsStore.stopAllVlcStreams();
   if (controlsTimeout.value) {
     clearTimeout(controlsTimeout.value);
   }
@@ -215,12 +243,12 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Playing in VLC indicator -->
+          <!-- VLC Multi-Stream Panel -->
           <div
-            v-if="isStreaming && playingInVlc"
-            class="absolute inset-0 flex items-center justify-center bg-surface-1"
+            v-if="vlcStreamCount > 0"
+            class="absolute inset-0 flex flex-col items-center justify-center bg-surface-1 p-6"
           >
-            <div class="text-center">
+            <div class="text-center mb-6">
               <svg
                 class="w-16 h-16 mx-auto text-accent mb-4"
                 fill="none"
@@ -234,14 +262,53 @@ onUnmounted(() => {
                   d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
                 />
               </svg>
-              <p class="text-text-primary font-medium mb-1">Playing in VLC</p>
-              <p class="text-text-muted text-sm">{{ selectedChannel?.callSign }} - {{ channelNumber }}</p>
+              <p class="text-text-primary font-medium mb-1">
+                {{ vlcStreamCount }} Active VLC Stream{{ vlcStreamCount > 1 ? 's' : '' }}
+              </p>
+              <p class="text-text-muted text-sm">Select another channel to add more streams</p>
             </div>
+
+            <!-- Active streams list -->
+            <div class="w-full max-w-md space-y-2 max-h-48 overflow-y-auto">
+              <div
+                v-for="stream in activeVlcStreams"
+                :key="stream.sessionId"
+                class="flex items-center justify-between p-3 bg-surface-2 rounded-xl"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-8 rounded-lg bg-accent/20 flex items-center justify-center text-accent font-bold text-sm">
+                    {{ stream.channelNumber }}
+                  </div>
+                  <div>
+                    <p class="text-text-primary font-medium text-sm">{{ stream.channelName }}</p>
+                    <p class="text-text-muted text-xs">VLC Window</p>
+                  </div>
+                </div>
+                <button
+                  @click="stopVlcStream(stream.sessionId)"
+                  class="p-2 text-text-muted hover:text-error hover:bg-error/10 rounded-lg transition-colors"
+                  title="Stop this stream"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Stop all button -->
+            <button
+              v-if="vlcStreamCount > 1"
+              @click="stopAllVlcStreams"
+              class="mt-4 px-4 py-2 text-sm text-error hover:bg-error/10 rounded-xl transition-colors"
+            >
+              Stop All Streams
+            </button>
           </div>
 
           <!-- Video element -->
           <video
-            v-show="isStreaming && !playingInVlc"
+            v-show="isStreaming && vlcStreamCount === 0"
             ref="videoRef"
             class="w-full h-full object-contain bg-black"
             autoplay
@@ -250,7 +317,7 @@ onUnmounted(() => {
 
           <!-- Buffering indicator -->
           <div
-            v-if="playerState.isBuffering && isStreaming && !playingInVlc"
+            v-if="playerState.isBuffering && isStreaming && vlcStreamCount === 0"
             class="absolute inset-0 flex items-center justify-center bg-black/50"
           >
             <div class="flex flex-col items-center">
@@ -302,7 +369,7 @@ onUnmounted(() => {
 
           <!-- Video controls overlay -->
           <div
-            v-if="isStreaming && !playingInVlc"
+            v-if="isStreaming && vlcStreamCount === 0"
             class="absolute bottom-0 left-0 right-0 transition-opacity duration-300"
             :class="showControls ? 'opacity-100' : 'opacity-0'"
           >

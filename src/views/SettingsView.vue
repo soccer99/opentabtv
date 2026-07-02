@@ -186,6 +186,56 @@ onUnmounted(() => {
             />
           </button>
         </div>
+
+        <!-- VLC Multi-Stream Feature Banner -->
+        <div
+          v-if="vlcInfo"
+          class="mt-4 p-4 rounded-xl"
+          :class="settingsStore.useVlc && vlcInfo.detected ? 'bg-accent/10 border border-accent/20' : 'bg-surface-2 border border-white/10'"
+        >
+          <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-accent flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+            <div>
+              <!-- Enabled state -->
+              <template v-if="settingsStore.useVlc && vlcInfo.detected">
+                <p class="font-medium text-accent text-sm">Multi-Stream Mode Enabled</p>
+                <p class="text-text-muted text-sm mt-1">
+                  Watch multiple channels simultaneously! Each channel opens in its own VLC window.
+                  Perfect for sports fans or monitoring multiple news stations at once.
+                </p>
+              </template>
+              <!-- Installed but not enabled -->
+              <template v-else-if="vlcInfo.detected && !settingsStore.useVlc">
+                <p class="font-medium text-text-primary text-sm">Multi-Stream Mode Available</p>
+                <p class="text-text-muted text-sm mt-1">
+                  Enable VLC playback above to watch multiple channels simultaneously! Each channel opens in its own VLC window -
+                  perfect for sports fans or monitoring multiple news stations at once.
+                </p>
+              </template>
+              <!-- Not installed -->
+              <template v-else>
+                <p class="font-medium text-text-primary text-sm">Unlock Multi-Stream Mode</p>
+                <p class="text-text-muted text-sm mt-1">
+                  Install VLC to watch multiple channels simultaneously! Each channel opens in its own VLC window -
+                  perfect for sports fans or monitoring multiple news stations at once.
+                </p>
+                <a
+                  href="https://www.videolan.org/vlc/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-1.5 mt-3 text-sm text-accent hover:text-accent-hover transition-colors"
+                >
+                  Download VLC
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              </template>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
