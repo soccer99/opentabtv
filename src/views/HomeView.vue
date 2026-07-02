@@ -134,9 +134,9 @@ onMounted(async () => {
   <div class="max-w-4xl mx-auto">
     <!-- Header -->
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-text-primary">Welcome to OpenRelay</h1>
+      <h1 class="text-3xl font-bold text-text-primary">Welcome to OpenTabTV</h1>
       <p class="text-text-secondary mt-2">
-        Connect to your OpenRelay DVR to start watching live TV and recordings.
+        Connect to your Tablo DVR to start watching live TV and recordings.
       </p>
     </div>
 

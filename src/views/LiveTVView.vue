@@ -148,7 +148,7 @@ onUnmounted(() => {
           Select a channel to start watching live television.
         </template>
         <template v-else>
-          Connect to a OpenRelay device to watch live TV.
+          Connect to a Tablo device to watch live TV.
         </template>
       </p>
     </div>
@@ -172,7 +172,7 @@ onUnmounted(() => {
             d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
           />
         </svg>
-        <p class="text-text-muted text-lg mb-4">No OpenRelay device connected</p>
+        <p class="text-text-muted text-lg mb-4">No Tablo device connected</p>
         <router-link
           to="/"
           class="inline-flex items-center gap-2 px-6 py-3 bg-accent hover:bg-accent/80 text-white rounded-xl transition-colors"

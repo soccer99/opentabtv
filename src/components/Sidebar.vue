@@ -92,13 +92,13 @@ function handleNavClick() {
         <!-- Logo text - hidden when collapsed -->
         <Transition name="fade-slide">
           <div v-if="!isCollapsed" class="lg:block hidden">
-            <h1 class="text-lg font-bold text-text-primary leading-tight">OpenRelay</h1>
+            <h1 class="text-lg font-bold text-text-primary leading-tight">OpenTabTV</h1>
             <p class="text-xs text-text-muted">DVR Manager</p>
           </div>
         </Transition>
         <!-- Always show on mobile -->
         <div class="lg:hidden">
-          <h1 class="text-lg font-bold text-text-primary leading-tight">OpenRelay</h1>
+          <h1 class="text-lg font-bold text-text-primary leading-tight">OpenTabTV</h1>
           <p class="text-xs text-text-muted">DVR Manager</p>
         </div>
       </RouterLink>

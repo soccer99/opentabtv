@@ -100,7 +100,7 @@ onUnmounted(() => {
     <div class="mb-6">
       <h1 class="text-3xl font-bold text-text-primary">Settings</h1>
       <p class="text-text-secondary mt-2">
-        Configure your Tablo app preferences.
+        Configure your OpenTabTV preferences.
       </p>
     </div>
 
