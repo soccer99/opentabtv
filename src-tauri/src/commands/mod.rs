@@ -622,3 +622,22 @@ fn try_vlc_at_path(path: &str) -> Option<ToolInfo> {
         _ => None,
     }
 }
+
+/// System information for the About section
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemInfo {
+    pub os: String,
+    pub arch: String,
+    pub os_version: String,
+}
+
+/// Get system information
+#[tauri::command]
+pub fn get_system_info() -> SystemInfo {
+    SystemInfo {
+        os: std::env::consts::OS.to_string(),
+        arch: std::env::consts::ARCH.to_string(),
+        os_version: os_info::get().version().to_string(),
+    }
+}

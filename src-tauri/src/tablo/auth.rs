@@ -65,7 +65,7 @@ mod tests {
         assert!(auth.starts_with("tablo:ljpg6ZkwShVv8aI12E2LP55Ep8vq1uYDPvX0DdTB:"));
         assert!(!date.is_empty());
         // Signature should be 32 hex chars (MD5 output)
-        let sig = auth.split(':').last().unwrap();
+        let sig = auth.split(':').next_back().unwrap();
         assert_eq!(sig.len(), 32);
     }
 

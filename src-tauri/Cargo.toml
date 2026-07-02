@@ -51,3 +51,6 @@ hex = "0.4"
 dirs = "5"
 tauri-plugin-store = "2.4.3"
 
+# System info
+os_info = "3"
+

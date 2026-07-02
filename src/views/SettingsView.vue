@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion, getTauriVersion } from "@tauri-apps/api/app";
 import { useAccountStore } from "@/stores/account";
 import { useDevicesStore } from "@/stores/devices";
 import { useSettingsStore } from "@/stores/settings";
@@ -12,6 +13,12 @@ interface ToolInfo {
   version: string | null;
 }
 
+interface SystemInfo {
+  os: string;
+  arch: string;
+  osVersion: string;
+}
+
 const accountStore = useAccountStore();
 const devicesStore = useDevicesStore();
 const settingsStore = useSettingsStore();
@@ -19,6 +26,9 @@ const { theme, setTheme } = useTheme();
 
 const ffmpegInfo = ref<ToolInfo | null>(null);
 const vlcInfo = ref<ToolInfo | null>(null);
+const appVersion = ref<string>("");
+const tauriVersion = ref<string>("");
+const systemInfo = ref<SystemInfo | null>(null);
 
 async function detectFfmpeg() {
   const customPath = settingsStore.ffmpegPath.trim() || undefined;
@@ -70,7 +80,13 @@ async function handleDisconnect() {
 
 onMounted(async () => {
   await accountStore.checkSavedCredentials();
-  await Promise.all([detectFfmpeg(), detectVlc()]);
+  await Promise.all([
+    detectFfmpeg(),
+    detectVlc(),
+    getVersion().then((v) => (appVersion.value = v)),
+    getTauriVersion().then((v) => (tauriVersion.value = v)),
+    invoke<SystemInfo>("get_system_info").then((info) => (systemInfo.value = info)),
+  ]);
 });
 
 onUnmounted(() => {
@@ -459,12 +475,65 @@ onUnmounted(() => {
       <h2 class="text-xl font-semibold text-text-primary mb-4">About</h2>
 
       <div class="space-y-4">
-        <div class="pt-4 border-t border-white/10">
-          <p class="text-sm text-text-muted">
-            Tablo App v0.1.0 • Built with Tauri + Vue
+        <!-- App info -->
+        <div class="flex items-start gap-4">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center flex-shrink-0">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-text-primary">OpenTabTV</h3>
+            <p class="text-sm text-text-secondary mt-1">
+              A modern desktop app for streaming live TV and recordings from your Tablo DVR. Supports both Legacy and 4th Gen devices.
+            </p>
+          </div>
+        </div>
+
+        <!-- Version info -->
+        <div class="grid grid-cols-2 gap-4 p-4 bg-surface-2 rounded-xl">
+          <div>
+            <p class="text-xs text-text-muted uppercase tracking-wide">Version</p>
+            <p class="text-sm text-text-primary font-medium mt-1">{{ appVersion || '...' }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-text-muted uppercase tracking-wide">Tauri</p>
+            <p class="text-sm text-text-primary font-medium mt-1">{{ tauriVersion || '...' }}</p>
+          </div>
+        </div>
+
+        <!-- System info -->
+        <div v-if="systemInfo" class="p-4 bg-surface-2 rounded-xl">
+          <p class="text-xs text-text-muted uppercase tracking-wide mb-2">System</p>
+          <p class="text-sm text-text-primary">
+            {{ systemInfo.os === 'macos' ? 'macOS' : systemInfo.os === 'windows' ? 'Windows' : systemInfo.os }}
+            {{ systemInfo.osVersion }}
+            <span class="text-text-muted">({{ systemInfo.arch }})</span>
           </p>
-          <p class="text-xs text-text-muted mt-2">
-            Supports Legacy (pre-4th Gen) and 4th Gen Tablo devices
+        </div>
+
+        <!-- Links -->
+        <div class="flex gap-3">
+          <a
+            href="https://github.com/soccer99/opentabtv"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-2 px-4 py-2 bg-surface-2 hover:bg-surface-3 rounded-xl text-sm text-text-primary transition-colors"
+          >
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
+            </svg>
+            GitHub
+            <svg class="w-3 h-3 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+
+        <!-- Credits -->
+        <div class="pt-4 border-t border-white/10">
+          <p class="text-xs text-text-muted">
+            Built with Tauri, Vue, and Tailwind CSS
           </p>
         </div>
       </div>

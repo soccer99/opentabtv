@@ -56,6 +56,8 @@ pub fn run() {
             commands::detect_ffmpeg,
             commands::detect_vlc,
             commands::open_in_vlc,
+            // System info
+            commands::get_system_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,6 +1,6 @@
-# Tablo
+# OpenTabTV
 
-An open source desktop and web application for controlling and streaming from [Tablo DVR](https://www.tablotv.com/) devices. Built with Tauri, Vue.js, and Rust.
+An open source desktop application for controlling and streaming from [Tablo DVR](https://www.tablotv.com/) devices. Built with Tauri, Vue.js, and Rust.
 
 > **Note:** This is an independent, community-developed project and is not affiliated with or endorsed by Nuvyyo Inc. (the makers of Tablo DVR).
 
@@ -86,8 +86,8 @@ sudo apt install ffmpeg vlc
 
 4. **Clone and install**
    ```bash
-   git clone https://github.com/yourusername/tablo.git
-   cd tablo
+   git clone https://github.com/soccer99/opentabtv.git
+   cd opentabtv
    pnpm install
    ```
 
