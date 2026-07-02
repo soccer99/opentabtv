@@ -194,11 +194,14 @@ onUnmounted(() => {
       <h2 class="text-xl font-semibold text-text-primary mb-4">
         External Tools
       </h2>
+      <p class="text-sm text-text-muted mb-4">
+        These tools are optional. The built-in player handles most streams without them.
+      </p>
 
       <div class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-text-secondary mb-2">
-            FFmpeg Path (optional)
+            FFmpeg Path
           </label>
           <input
             v-model="settingsStore.ffmpegPath"
@@ -207,7 +210,7 @@ onUnmounted(() => {
             class="w-full px-4 py-3 bg-surface-2 border border-white/10 rounded-xl text-text-primary placeholder-text-muted focus:border-accent focus:ring-1 focus:ring-accent"
           />
           <p class="text-xs text-text-muted mt-2">
-            Leave empty to use system PATH
+            For transcoding HEVC streams from 4th Gen devices. Leave empty to use system PATH.
           </p>
         </div>
 
@@ -232,7 +235,7 @@ onUnmounted(() => {
           </svg>
           <svg
             v-else
-            class="w-5 h-5 text-warning flex-shrink-0"
+            class="w-5 h-5 text-text-muted flex-shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -241,7 +244,7 @@ onUnmounted(() => {
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="2"
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
           <div class="min-w-0 flex-1">
@@ -254,18 +257,16 @@ onUnmounted(() => {
                 ({{ ffmpegInfo.version }})
               </span>
             </span>
-            <div v-else class="flex items-center gap-2 flex-wrap">
-              <span class="text-sm text-warning">FFmpeg not found</span>
+            <div v-else>
+              <span class="text-sm text-text-secondary">FFmpeg not installed</span>
+              <span class="text-sm text-text-muted"> · </span>
               <a
                 href="https://ffmpeg.org/download.html"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-sm text-accent hover:text-accent-hover transition-colors inline-flex items-center gap-1"
+                class="text-sm text-accent hover:text-accent-hover transition-colors"
               >
-                Download FFmpeg
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
+                Download
               </a>
             </div>
             <p
@@ -288,7 +289,7 @@ onUnmounted(() => {
         <!-- VLC -->
         <div>
           <label class="block text-sm font-medium text-text-secondary mb-2">
-            VLC Path (optional)
+            VLC Path
           </label>
           <input
             v-model="settingsStore.vlcPath"
@@ -297,7 +298,7 @@ onUnmounted(() => {
             class="w-full px-4 py-3 bg-surface-2 border border-white/10 rounded-xl text-text-primary placeholder-text-muted focus:border-accent focus:ring-1 focus:ring-accent"
           />
           <p class="text-xs text-text-muted mt-2">
-            Leave empty to auto-detect
+            Alternative external player. Leave empty to auto-detect.
           </p>
         </div>
 
@@ -322,7 +323,7 @@ onUnmounted(() => {
           </svg>
           <svg
             v-else
-            class="w-5 h-5 text-warning flex-shrink-0"
+            class="w-5 h-5 text-text-muted flex-shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -331,7 +332,7 @@ onUnmounted(() => {
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="2"
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
           <div class="min-w-0 flex-1">
@@ -344,18 +345,16 @@ onUnmounted(() => {
                 ({{ vlcInfo.version }})
               </span>
             </span>
-            <div v-else class="flex items-center gap-2 flex-wrap">
-              <span class="text-sm text-warning">VLC not found</span>
+            <div v-else>
+              <span class="text-sm text-text-secondary">VLC not installed</span>
+              <span class="text-sm text-text-muted"> · </span>
               <a
                 href="https://www.videolan.org/vlc/"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-sm text-accent hover:text-accent-hover transition-colors inline-flex items-center gap-1"
+                class="text-sm text-accent hover:text-accent-hover transition-colors"
               >
-                Download VLC
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
+                Download
               </a>
             </div>
             <p
