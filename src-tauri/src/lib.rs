@@ -29,6 +29,7 @@ pub fn run() {
             commands::disconnect_device,
             commands::get_server_info,
             commands::get_last_device,
+            commands::check_device_reachable,
             // Channel commands
             commands::get_channels,
             // Guide commands

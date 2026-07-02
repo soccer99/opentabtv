@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed } from "vue";
 import { useRoute, RouterLink } from "vue-router";
-import { useDevicesStore } from "@/stores/devices";
+import DeviceSelector from "@/components/DeviceSelector.vue";
 
 defineProps<{
   isCollapsed: boolean;
@@ -14,13 +13,13 @@ const emit = defineEmits<{
 }>();
 
 const route = useRoute();
-const devicesStore = useDevicesStore();
 
 const navItems = [
   { path: "/", name: "Home", icon: "home" },
   { path: "/live", name: "Live TV", icon: "tv" },
   { path: "/guide", name: "Guide", icon: "calendar" },
   { path: "/recordings", name: "Recordings", icon: "film" },
+  { path: "/devices", name: "Devices", icon: "devices" },
   { path: "/settings", name: "Settings", icon: "settings" },
 ];
 
@@ -28,29 +27,6 @@ const isActive = (path: string) => {
   if (path === "/") return route.path === "/";
   return route.path.startsWith(path);
 };
-
-// Connection status
-const connectionStatus = computed(() => {
-  if (devicesStore.connectionState === "connecting") {
-    return {
-      color: "bg-warning animate-pulse",
-      text: "Connecting",
-      subtext: "Please wait...",
-    };
-  }
-  if (devicesStore.isConnected) {
-    return {
-      color: "bg-success",
-      text: devicesStore.activeDevice?.name || "Connected",
-      subtext: devicesStore.activeDevice?.localIp || "Device connected",
-    };
-  }
-  return {
-    color: "bg-text-muted",
-    text: "No Device",
-    subtext: "Not connected",
-  };
-});
 
 function handleNavClick() {
   // Close mobile menu when navigating
@@ -153,6 +129,10 @@ function handleNavClick() {
           <svg v-else-if="item.icon === 'film'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
           </svg>
+          <!-- Devices -->
+          <svg v-else-if="item.icon === 'devices'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
           <!-- Settings -->
           <svg v-else-if="item.icon === 'settings'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -186,39 +166,8 @@ function handleNavClick() {
       </svg>
     </button>
 
-    <!-- Device Status -->
-    <div class="p-3 border-t border-white/5">
-      <div
-        class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface-2/50"
-        :class="isCollapsed ? 'lg:justify-center lg:px-0' : ''"
-      >
-        <!-- Status indicator -->
-        <div
-          class="w-2.5 h-2.5 rounded-full shrink-0"
-          :class="connectionStatus.color"
-        />
-        <!-- Status text - hidden when collapsed -->
-        <Transition name="fade-slide">
-          <div v-if="!isCollapsed" class="min-w-0 hidden lg:block">
-            <p class="text-sm font-medium text-text-primary truncate">
-              {{ connectionStatus.text }}
-            </p>
-            <p class="text-xs text-text-muted truncate">
-              {{ connectionStatus.subtext }}
-            </p>
-          </div>
-        </Transition>
-        <!-- Always show on mobile -->
-        <div class="min-w-0 lg:hidden">
-          <p class="text-sm font-medium text-text-primary truncate">
-            {{ connectionStatus.text }}
-          </p>
-          <p class="text-xs text-text-muted truncate">
-            {{ connectionStatus.subtext }}
-          </p>
-        </div>
-      </div>
-    </div>
+    <!-- Device Selector -->
+    <DeviceSelector :is-collapsed="isCollapsed" />
   </aside>
 </template>
 

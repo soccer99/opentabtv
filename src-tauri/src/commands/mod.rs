@@ -384,6 +384,13 @@ pub fn get_last_device() -> Result<Option<(String, String)>, TabloError> {
     TabloConfig::get_last_device()
 }
 
+/// Check if a device is reachable at the given IP
+#[tauri::command]
+pub async fn check_device_reachable(ip: String) -> Result<bool, TabloError> {
+    tracing::debug!("Checking if device at {} is reachable", ip);
+    discovery::check_device_connection(&ip).await
+}
+
 // ============================================================================
 // External Tools Detection
 // ============================================================================

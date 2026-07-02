@@ -1,7 +1,11 @@
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { defineStore } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
 import type { TabloDevice, ConnectionState, DeviceGeneration } from "@/types";
+
+export type DeviceStatus = "online" | "offline" | "checking";
+
+const REGISTERED_DEVICES_KEY = "tablo_registered_devices";
 
 export const useDevicesStore = defineStore("devices", () => {
   // State
@@ -11,9 +15,50 @@ export const useDevicesStore = defineStore("devices", () => {
   const error = ref<string | null>(null);
   const isLoading = ref(false);
 
+  // Registered devices (persisted to localStorage)
+  const registeredDevices = ref<TabloDevice[]>([]);
+  const deviceStatus = ref<Map<string, DeviceStatus>>(new Map());
+
+  // Load registered devices from localStorage on init
+  function loadRegisteredDevices() {
+    try {
+      const stored = localStorage.getItem(REGISTERED_DEVICES_KEY);
+      if (stored) {
+        registeredDevices.value = JSON.parse(stored);
+        // Initialize all as offline until checked
+        registeredDevices.value.forEach((d) => {
+          deviceStatus.value.set(d.id, "offline");
+        });
+      }
+    } catch (e) {
+      console.error("Failed to load registered devices:", e);
+    }
+  }
+
+  // Save registered devices to localStorage
+  function saveRegisteredDevices() {
+    try {
+      localStorage.setItem(
+        REGISTERED_DEVICES_KEY,
+        JSON.stringify(registeredDevices.value)
+      );
+    } catch (e) {
+      console.error("Failed to save registered devices:", e);
+    }
+  }
+
+  // Watch for changes and persist
+  watch(registeredDevices, saveRegisteredDevices, { deep: true });
+
+  // Initialize on store creation
+  loadRegisteredDevices();
+
   // Getters
   const isConnected = computed(() => connectionState.value === "connected");
   const hasDevices = computed(() => devices.value.length > 0);
+  const hasRegisteredDevices = computed(
+    () => registeredDevices.value.length > 0
+  );
   const legacyDevices = computed(() =>
     devices.value.filter((d) => d.generation === "legacy")
   );
@@ -138,6 +183,64 @@ export const useDevicesStore = defineStore("devices", () => {
     }
   }
 
+  // Register a device (add to persisted list)
+  function registerDevice(device: TabloDevice): void {
+    const exists = registeredDevices.value.some((d) => d.id === device.id);
+    if (!exists) {
+      registeredDevices.value.push(device);
+      deviceStatus.value.set(device.id, "online");
+    } else {
+      // Update existing device info
+      const index = registeredDevices.value.findIndex(
+        (d) => d.id === device.id
+      );
+      if (index >= 0) {
+        registeredDevices.value[index] = device;
+      }
+    }
+  }
+
+  // Unregister a device (remove from persisted list)
+  function unregisterDevice(deviceId: string): void {
+    registeredDevices.value = registeredDevices.value.filter(
+      (d) => d.id !== deviceId
+    );
+    deviceStatus.value.delete(deviceId);
+  }
+
+  // Check if a single device is reachable
+  async function checkDeviceStatus(device: TabloDevice): Promise<DeviceStatus> {
+    deviceStatus.value.set(device.id, "checking");
+
+    try {
+      // Try to ping the device by attempting a basic connection check
+      const isReachable = await invoke<boolean>("check_device_reachable", {
+        ip: device.localIp,
+      });
+
+      const status: DeviceStatus = isReachable ? "online" : "offline";
+      deviceStatus.value.set(device.id, status);
+      return status;
+    } catch (e) {
+      console.error(`Failed to check device ${device.name}:`, e);
+      deviceStatus.value.set(device.id, "offline");
+      return "offline";
+    }
+  }
+
+  // Check all registered devices
+  async function checkAllDevices(): Promise<void> {
+    const promises = registeredDevices.value.map((device) =>
+      checkDeviceStatus(device)
+    );
+    await Promise.all(promises);
+  }
+
+  // Get status for a device
+  function getDeviceStatus(deviceId: string): DeviceStatus {
+    return deviceStatus.value.get(deviceId) || "offline";
+  }
+
   return {
     // State
     devices,
@@ -145,9 +248,12 @@ export const useDevicesStore = defineStore("devices", () => {
     connectionState,
     error,
     isLoading,
+    registeredDevices,
+    deviceStatus,
     // Getters
     isConnected,
     hasDevices,
+    hasRegisteredDevices,
     legacyDevices,
     gen4Devices,
     activeDeviceGeneration,
@@ -160,5 +266,10 @@ export const useDevicesStore = defineStore("devices", () => {
     getLastDevice,
     disconnect,
     refreshActiveDevice,
+    registerDevice,
+    unregisterDevice,
+    checkDeviceStatus,
+    checkAllDevices,
+    getDeviceStatus,
   };
 });

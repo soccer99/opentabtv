@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRecordingsStore, type RecordingType, type RecordingDisplay } from "@/stores/recordings";
 import { useDevicesStore } from "@/stores/devices";
 import { useMediaPlayer } from "@/composables/useMediaPlayer";
+import NoDeviceConnected from "@/components/NoDeviceConnected.vue";
 
 const recordingsStore = useRecordingsStore();
 const devicesStore = useDevicesStore();
@@ -208,46 +209,11 @@ onUnmounted(() => {
     </div>
 
     <!-- Not connected state -->
-    <div
+    <NoDeviceConnected
       v-if="!isConnected"
-      class="flex flex-col items-center justify-center py-16"
-    >
-      <div class="text-center">
-        <svg
-          class="w-24 h-24 mx-auto text-text-muted mb-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="1.5"
-            d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"
-          />
-        </svg>
-        <p class="text-text-muted text-lg mb-4">No Tablo device connected</p>
-        <router-link
-          to="/"
-          class="inline-flex items-center gap-2 px-6 py-3 bg-accent hover:bg-accent/80 text-white rounded-xl transition-colors"
-        >
-          <svg
-            class="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-          Find Devices
-        </router-link>
-      </div>
-    </div>
+      title="No Device Connected"
+      description="Connect to a Tablo device to browse and watch your recordings."
+    />
 
     <!-- Connected state -->
     <template v-else>
