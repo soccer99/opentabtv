@@ -59,10 +59,16 @@ function handleNavClick() {
         class="flex items-center gap-3"
         @click="handleNavClick"
       >
-        <!-- Logo icon -->
+        <!-- Logo icon - Radio/Broadcast Tower -->
         <div class="w-10 h-10 rounded-xl bg-accent flex items-center justify-center shrink-0">
-          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9" />
+            <path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5" />
+            <circle cx="12" cy="9" r="2" />
+            <path d="M16.2 4.8c2 2 2.26 5.11.8 7.47" />
+            <path d="M19.1 1.9a9.96 9.96 0 0 1 0 14.1" />
+            <path d="M9.5 18h5" />
+            <path d="m8 22 4-11 4 11" />
           </svg>
         </div>
         <!-- Logo text - hidden when collapsed -->
