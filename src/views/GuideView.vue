@@ -4,10 +4,15 @@ import { storeToRefs } from "pinia";
 import { useDevicesStore } from "@/stores/devices";
 import { useChannelsStore, type Channel } from "@/stores/channels";
 import { useGuideStore, type GuideProgram } from "@/stores/guide";
+import { formatChannelNumber } from "@/utils/format";
+import { useDevicePreferencesStore } from "@/stores/devicePreferences";
+import NoDeviceConnected from "@/components/NoDeviceConnected.vue";
+import FavoriteButton from "@/components/FavoriteButton.vue";
 
 const devicesStore = useDevicesStore();
 const channelsStore = useChannelsStore();
 const guideStore = useGuideStore();
+const devicePreferencesStore = useDevicePreferencesStore();
 
 const { isConnected } = storeToRefs(devicesStore);
 const { sortedChannels } = storeToRefs(channelsStore);
@@ -113,11 +118,6 @@ const isNowInView = computed(() => {
   return now >= viewStartTime.value.getTime() && now <= viewEndTime.value.getTime();
 });
 
-// Get channel number display
-function getChannelNumber(channel: Channel): string {
-  return channel.minor > 0 ? `${channel.major}.${channel.minor}` : `${channel.major}`;
-}
-
 // Get programs for a channel
 function getChannelPrograms(channel: Channel): GuideProgram[] {
   return visibleAiringsByChannel.value.get(channel.path) || [];
@@ -150,10 +150,13 @@ function formatEpisode(program: GuideProgram): string {
 }
 
 // Fetch data on mount
-onMounted(() => {
+onMounted(async () => {
   if (isConnected.value) {
-    channelsStore.fetchChannels();
-    guideStore.fetchAirings();
+    await Promise.all([
+      channelsStore.fetchChannels(),
+      guideStore.fetchAirings(),
+      devicePreferencesStore.initialize(),
+    ]);
   }
 });
 
@@ -260,29 +263,11 @@ onUnmounted(() => {
     </div>
 
     <!-- Not Connected State -->
-    <div
+    <NoDeviceConnected
       v-if="!isConnected"
-      class="glass rounded-xl p-12 text-center"
-    >
-      <svg
-        class="w-16 h-16 mx-auto text-text-muted mb-4"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="1.5"
-          d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-        />
-      </svg>
-      <h2 class="text-xl font-semibold text-text-primary mb-2">No Device Connected</h2>
-      <p class="text-text-muted max-w-md mx-auto">
-        Connect to a Tablo DVR device from the Home page to view the TV guide
-        and see what's on now and upcoming.
-      </p>
-    </div>
+      title="No Device Connected"
+      description="Connect to a Tablo device to view the TV guide and see what's on now and upcoming."
+    />
 
     <!-- Loading State -->
     <div
@@ -357,9 +342,12 @@ onUnmounted(() => {
           class="flex border-b border-white/10 last:border-b-0 min-h-[60px]"
         >
           <!-- Channel Info -->
-          <div class="w-32 flex-shrink-0 p-3 bg-surface-1 flex flex-col justify-center">
-            <p class="font-medium text-text-primary">{{ getChannelNumber(channel) }}</p>
-            <p class="text-xs text-text-muted truncate">{{ channel.callSign }}</p>
+          <div class="w-32 flex-shrink-0 p-3 bg-surface-1 flex items-center gap-2">
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-text-primary">{{ formatChannelNumber(channel) }}</p>
+              <p class="text-xs text-text-muted truncate">{{ channel.callSign }}</p>
+            </div>
+            <FavoriteButton :channel-id="channel.id" size="sm" />
           </div>
 
           <!-- Programs Grid -->

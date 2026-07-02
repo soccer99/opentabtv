@@ -1,6 +1,8 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
+import { useDevicesStore } from "./devices";
+import { useDevicePreferencesStore } from "./devicePreferences";
 
 export interface Channel {
   id: string;
@@ -76,6 +78,15 @@ export const useChannelsStore = defineStore("channels", () => {
         channelPath: channel.path,
       });
       currentStream.value = session;
+
+      // Track recent channel after successful stream start
+      const devicesStore = useDevicesStore();
+      const devicePreferencesStore = useDevicePreferencesStore();
+      const deviceId = devicesStore.activeDevice?.id;
+      if (deviceId) {
+        devicePreferencesStore.addRecentChannel(deviceId, channel.id);
+      }
+
       return session;
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);

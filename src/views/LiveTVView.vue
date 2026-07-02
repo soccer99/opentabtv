@@ -2,14 +2,19 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { useChannelsStore, type Channel } from "@/stores/channels";
+import { formatChannelNumber } from "@/utils/format";
 import { useDevicesStore } from "@/stores/devices";
 import { useSettingsStore } from "@/stores/settings";
+import { useDevicePreferencesStore } from "@/stores/devicePreferences";
 import { useMediaPlayer } from "@/composables/useMediaPlayer";
 import { useToast } from "@/composables/useToast";
+import NoDeviceConnected from "@/components/NoDeviceConnected.vue";
+import FavoriteButton from "@/components/FavoriteButton.vue";
 
 const channelsStore = useChannelsStore();
 const devicesStore = useDevicesStore();
 const settingsStore = useSettingsStore();
+const devicePreferencesStore = useDevicePreferencesStore();
 const toast = useToast();
 
 // Video element ref
@@ -30,10 +35,15 @@ const selectedChannel = computed(() => channelsStore.selectedChannel);
 const isStreaming = computed(() => channelsStore.isStreaming);
 const channelNumber = computed(() => channelsStore.channelNumber);
 
-// Format channel number for display
-function formatChannelNumber(channel: Channel): string {
-  return channel.minor > 0 ? `${channel.major}.${channel.minor}` : `${channel.major}`;
-}
+// Favorite channels
+const favoriteChannels = computed(() => {
+  const deviceId = devicesStore.activeDevice?.id;
+  if (!deviceId) return [];
+  const favoriteIds = devicePreferencesStore.getFavorites(deviceId);
+  return channels.value.filter((c) => favoriteIds.includes(c.id));
+});
+
+const hasFavorites = computed(() => favoriteChannels.value.length > 0);
 
 // Track if playing in VLC
 const playingInVlc = ref(false);
@@ -77,12 +87,15 @@ function onMouseMove() {
   }, 3000);
 }
 
-// Load channels when connected
+// Load channels and preferences when connected
 watch(
   () => devicesStore.isConnected,
   async (connected) => {
     if (connected) {
-      await channelsStore.fetchChannels();
+      await Promise.all([
+        channelsStore.fetchChannels(),
+        devicePreferencesStore.initialize(),
+      ]);
     }
   },
   { immediate: true }
@@ -154,46 +167,11 @@ onUnmounted(() => {
     </div>
 
     <!-- Not connected state -->
-    <div
+    <NoDeviceConnected
       v-if="!isConnected"
-      class="flex flex-col items-center justify-center py-16"
-    >
-      <div class="text-center">
-        <svg
-          class="w-24 h-24 mx-auto text-text-muted mb-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="1.5"
-            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-          />
-        </svg>
-        <p class="text-text-muted text-lg mb-4">No Tablo device connected</p>
-        <router-link
-          to="/"
-          class="inline-flex items-center gap-2 px-6 py-3 bg-accent hover:bg-accent/80 text-white rounded-xl transition-colors"
-        >
-          <svg
-            class="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-          Find Devices
-        </router-link>
-      </div>
-    </div>
+      title="No Device Connected"
+      description="Connect to a Tablo device to watch live TV and browse channels."
+    />
 
     <!-- Connected state -->
     <div
@@ -523,6 +501,67 @@ onUnmounted(() => {
             v-else
             class="space-y-2 overflow-y-auto flex-1"
           >
+            <!-- Favorites Section -->
+            <div v-if="hasFavorites" class="mb-4">
+              <p class="text-xs font-medium text-text-muted uppercase tracking-wide mb-2 px-1">
+                Favorites
+              </p>
+              <div class="space-y-1">
+                <button
+                  v-for="channel in favoriteChannels"
+                  :key="`fav-${channel.id}`"
+                  @click="selectChannel(channel)"
+                  class="w-full p-3 rounded-xl text-left transition-colors"
+                  :class="[
+                    selectedChannel?.id === channel.id
+                      ? 'bg-accent text-white'
+                      : 'hover:bg-white/5 bg-accent/5',
+                  ]"
+                >
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="w-12 h-10 rounded-lg flex items-center justify-center font-bold text-sm shrink-0"
+                      :class="[
+                        selectedChannel?.id === channel.id
+                          ? 'bg-white/20 text-white'
+                          : 'bg-surface-2 text-text-primary',
+                      ]"
+                    >
+                      {{ formatChannelNumber(channel) }}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <p
+                        class="font-medium truncate"
+                        :class="[
+                          selectedChannel?.id === channel.id
+                            ? 'text-white'
+                            : 'text-text-primary',
+                        ]"
+                      >
+                        {{ channel.callSign }}
+                      </p>
+                      <p
+                        class="text-sm truncate"
+                        :class="[
+                          selectedChannel?.id === channel.id
+                            ? 'text-white/70'
+                            : 'text-text-muted',
+                        ]"
+                      >
+                        {{ channel.network || "Local" }}
+                      </p>
+                    </div>
+                    <FavoriteButton :channel-id="channel.id" size="sm" />
+                  </div>
+                </button>
+              </div>
+              <div class="border-b border-white/10 my-3"></div>
+            </div>
+
+            <!-- All Channels Section -->
+            <p v-if="hasFavorites" class="text-xs font-medium text-text-muted uppercase tracking-wide mb-2 px-1">
+              All Channels
+            </p>
             <button
               v-for="channel in channels"
               :key="channel.id"
@@ -545,7 +584,7 @@ onUnmounted(() => {
                 >
                   {{ formatChannelNumber(channel) }}
                 </div>
-                <div class="min-w-0">
+                <div class="min-w-0 flex-1">
                   <p
                     class="font-medium truncate"
                     :class="[
@@ -567,10 +606,12 @@ onUnmounted(() => {
                     {{ channel.network || "Local" }}
                   </p>
                 </div>
+                <!-- Favorite button -->
+                <FavoriteButton :channel-id="channel.id" size="sm" />
                 <!-- Resolution badge -->
                 <div
                   v-if="channel.resolution === 'hd_1080'"
-                  class="ml-auto px-1.5 py-0.5 text-xs font-medium rounded"
+                  class="px-1.5 py-0.5 text-xs font-medium rounded"
                   :class="[
                     selectedChannel?.id === channel.id
                       ? 'bg-white/20 text-white'
