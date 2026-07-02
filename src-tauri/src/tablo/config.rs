@@ -1,7 +1,13 @@
 //! Configuration and credential storage for Tablo
 //!
-//! Stores user credentials in the app data directory for auto-login.
+//! Credentials are stored securely using the OS keychain:
+//! - macOS: Login Keychain
+//! - Windows: Credential Manager
+//! - Linux: Secret Service (GNOME Keyring, KWallet, etc.)
+//!
+//! Non-sensitive config (last device IP) is stored in the app data directory.
 
+use keyring::Entry;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -11,13 +17,14 @@ use crate::error::{TabloError, TabloResult};
 use super::types::Credentials;
 
 const CONFIG_FILENAME: &str = "tablo_config.json";
+const KEYRING_SERVICE: &str = "com.opentabtv.app";
+const KEYRING_EMAIL_KEY: &str = "tablo_email";
+const KEYRING_PASSWORD_KEY: &str = "tablo_password";
 
-/// Application configuration stored on disk
+/// Application configuration stored on disk (non-sensitive data only)
+/// Credentials are stored securely in the OS keychain, not here.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TabloConfig {
-    /// Saved credentials for 4th Gen cloud login
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub credentials: Option<Credentials>,
     /// Last connected device IP for quick reconnect
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_device_ip: Option<String>,
@@ -73,27 +80,73 @@ impl TabloConfig {
         Ok(())
     }
 
-    /// Save credentials
+    /// Save credentials securely to OS keychain
     pub fn save_credentials(email: &str, password: &str) -> TabloResult<()> {
-        let mut config = Self::load().unwrap_or_default();
-        config.credentials = Some(Credentials {
-            email: email.to_string(),
-            password: password.to_string(),
-        });
-        config.save()
+        // Store email in keychain
+        let email_entry = Entry::new(KEYRING_SERVICE, KEYRING_EMAIL_KEY)
+            .map_err(|e| TabloError::ConfigError(format!("Failed to access keychain: {}", e)))?;
+        email_entry
+            .set_password(email)
+            .map_err(|e| TabloError::ConfigError(format!("Failed to save email to keychain: {}", e)))?;
+
+        // Store password in keychain
+        let password_entry = Entry::new(KEYRING_SERVICE, KEYRING_PASSWORD_KEY)
+            .map_err(|e| TabloError::ConfigError(format!("Failed to access keychain: {}", e)))?;
+        password_entry
+            .set_password(password)
+            .map_err(|e| TabloError::ConfigError(format!("Failed to save password to keychain: {}", e)))?;
+
+        tracing::info!("Credentials saved securely to OS keychain");
+        Ok(())
     }
 
-    /// Load credentials
+    /// Load credentials from OS keychain
     pub fn load_credentials() -> TabloResult<Option<Credentials>> {
-        let config = Self::load()?;
-        Ok(config.credentials)
+        let email_entry = match Entry::new(KEYRING_SERVICE, KEYRING_EMAIL_KEY) {
+            Ok(entry) => entry,
+            Err(_) => return Ok(None),
+        };
+
+        let password_entry = match Entry::new(KEYRING_SERVICE, KEYRING_PASSWORD_KEY) {
+            Ok(entry) => entry,
+            Err(_) => return Ok(None),
+        };
+
+        let email = match email_entry.get_password() {
+            Ok(e) => e,
+            Err(keyring::Error::NoEntry) => return Ok(None),
+            Err(e) => {
+                tracing::warn!("Failed to read email from keychain: {}", e);
+                return Ok(None);
+            }
+        };
+
+        let password = match password_entry.get_password() {
+            Ok(p) => p,
+            Err(keyring::Error::NoEntry) => return Ok(None),
+            Err(e) => {
+                tracing::warn!("Failed to read password from keychain: {}", e);
+                return Ok(None);
+            }
+        };
+
+        Ok(Some(Credentials { email, password }))
     }
 
-    /// Clear credentials
+    /// Clear credentials from OS keychain
     pub fn clear_credentials() -> TabloResult<()> {
-        let mut config = Self::load().unwrap_or_default();
-        config.credentials = None;
-        config.save()
+        // Delete email from keychain (ignore errors if not found)
+        if let Ok(email_entry) = Entry::new(KEYRING_SERVICE, KEYRING_EMAIL_KEY) {
+            let _ = email_entry.delete_credential();
+        }
+
+        // Delete password from keychain (ignore errors if not found)
+        if let Ok(password_entry) = Entry::new(KEYRING_SERVICE, KEYRING_PASSWORD_KEY) {
+            let _ = password_entry.delete_credential();
+        }
+
+        tracing::info!("Credentials cleared from OS keychain");
+        Ok(())
     }
 
     /// Save last connected device
@@ -122,11 +175,18 @@ impl TabloConfig {
         config.save()
     }
 
-    /// Check if credentials are saved
+    /// Check if credentials are saved in OS keychain
     pub fn has_credentials() -> bool {
-        Self::load()
-            .map(|c| c.credentials.is_some())
-            .unwrap_or(false)
+        // Check if both email and password exist in keychain
+        let email_exists = Entry::new(KEYRING_SERVICE, KEYRING_EMAIL_KEY)
+            .and_then(|e| e.get_password())
+            .is_ok();
+
+        let password_exists = Entry::new(KEYRING_SERVICE, KEYRING_PASSWORD_KEY)
+            .and_then(|e| e.get_password())
+            .is_ok();
+
+        email_exists && password_exists
     }
 }
 
@@ -137,17 +197,13 @@ mod tests {
     #[test]
     fn test_config_default() {
         let config = TabloConfig::default();
-        assert!(config.credentials.is_none());
         assert!(config.last_device_ip.is_none());
+        assert!(config.last_device_id.is_none());
     }
 
     #[test]
     fn test_config_serialization() {
         let config = TabloConfig {
-            credentials: Some(Credentials {
-                email: "test@example.com".to_string(),
-                password: "secret".to_string(),
-            }),
             last_device_ip: Some("192.168.1.100".to_string()),
             last_device_id: Some("device-123".to_string()),
         };
@@ -155,7 +211,11 @@ mod tests {
         let json = serde_json::to_string(&config).unwrap();
         let parsed: TabloConfig = serde_json::from_str(&json).unwrap();
 
-        assert_eq!(parsed.credentials.unwrap().email, "test@example.com");
         assert_eq!(parsed.last_device_ip.unwrap(), "192.168.1.100");
+        assert_eq!(parsed.last_device_id.unwrap(), "device-123");
     }
+
+    // Note: Keychain credential tests require a running keychain service
+    // and are not suitable for automated unit tests. Manual testing or
+    // integration tests with mock keychain should be used instead.
 }

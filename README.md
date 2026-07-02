@@ -118,26 +118,11 @@ pnpm tauri build
 # macOS: Universal binary (Intel + ARM)
 pnpm tauri build --target universal-apple-darwin
 
-# macOS: Apple Silicon only
-pnpm tauri build --target aarch64-apple-darwin
-
-# macOS: Intel only
-pnpm tauri build --target x86_64-apple-darwin
-
 # Windows: 64-bit
 pnpm tauri build --target x86_64-pc-windows-msvc
-
-# Linux: 64-bit
-pnpm tauri build --target x86_64-unknown-linux-gnu
 ```
 
-### Build Outputs
-
-| Platform | Format | Location |
-|----------|--------|----------|
-| macOS | DMG, APP | `src-tauri/target/release/bundle/dmg/` |
-| Windows | MSI, NSIS | `src-tauri/target/release/bundle/msi/` |
-| Linux | DEB, AppImage, RPM | `src-tauri/target/release/bundle/` |
+See [BUILD.md](BUILD.md) for complete build documentation including CI/CD setup, code signing, and platform-specific notes.
 
 ## Usage
 
@@ -258,15 +243,16 @@ tablo/
 
 ## Documentation
 
-Detailed documentation is available in the `.wiki/` directory:
-
-- [Tablo API Reference](.wiki/tablo-api.md) - Device API, ports, endpoints
-- [Architecture](.wiki/architecture.md) - System design and data flow
-- [Features](.wiki/features.md) - Feature specifications
-- [Tech Stack](.wiki/tech-stack.md) - Technology choices
-- [Code Style](.wiki/code-style.md) - Coding conventions
-- [Cross-Platform Build](.wiki/cross-platform.md) - Build guide for all platforms
-- [Design System](.wiki/design-system.md) - UI/UX guidelines
+| Document | Description |
+|----------|-------------|
+| [BUILD.md](BUILD.md) | Complete build guide for all platforms |
+| [SECURITY.md](SECURITY.md) | Security practices and data handling |
+| [.wiki/tablo-api.md](.wiki/tablo-api.md) | Tablo device API reference |
+| [.wiki/architecture.md](.wiki/architecture.md) | System design and data flow |
+| [.wiki/features.md](.wiki/features.md) | Feature specifications |
+| [.wiki/tech-stack.md](.wiki/tech-stack.md) | Technology choices |
+| [.wiki/code-style.md](.wiki/code-style.md) | Coding conventions |
+| [.wiki/design-system.md](.wiki/design-system.md) | UI/UX guidelines |
 
 ## Recommended IDE Setup
 
@@ -274,6 +260,17 @@ Detailed documentation is available in the `.wiki/` directory:
 - [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar)
 - [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)
 - [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+
+## Security
+
+OpenTabTV is designed with security as a priority:
+
+- **Credentials stored in OS Keychain** (macOS Keychain, Windows Credential Manager, Linux Secret Service)
+- **Strict Content Security Policy** preventing XSS and code injection
+- **Minimal Tauri permissions** following principle of least privilege
+- **No telemetry or analytics** - your data stays on your device
+
+See [SECURITY.md](SECURITY.md) for complete security documentation.
 
 ## Troubleshooting
 

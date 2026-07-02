@@ -51,6 +51,13 @@ hex = "0.4"
 dirs = "5"
 tauri-plugin-store = "2.4.3"
 
+# Secure credential storage (OS keychain - macOS Keychain, Windows Credential Manager, Linux Secret Service)
+keyring = { version = "3", features = ["sync-secret-service", "apple-native", "windows-native"] }
+
 # System info
 os_info = "3"
+
+# Casting support (Chromecast + DLNA)
+rust_cast = "0.19"
+mdns-sd = "0.11"
 

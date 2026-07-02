@@ -7,6 +7,16 @@ export type DeviceStatus = "online" | "offline" | "checking";
 
 const REGISTERED_DEVICES_KEY = "tablo_registered_devices";
 
+/**
+ * Strip sensitive tokens from device before persistence.
+ * Tokens are kept only in the Rust backend state, not in localStorage.
+ * This prevents token exposure via browser dev tools or localStorage access.
+ */
+function stripSensitiveData(device: TabloDevice): TabloDevice {
+  const { accountToken, lighthouseToken, ...safeDevice } = device;
+  return safeDevice as TabloDevice;
+}
+
 export const useDevicesStore = defineStore("devices", () => {
   // State
   const devices = ref<TabloDevice[]>([]);
@@ -35,12 +45,14 @@ export const useDevicesStore = defineStore("devices", () => {
     }
   }
 
-  // Save registered devices to localStorage
+  // Save registered devices to localStorage (without sensitive tokens)
   function saveRegisteredDevices() {
     try {
+      // Strip sensitive tokens before persisting to localStorage
+      const safeDevices = registeredDevices.value.map(stripSensitiveData);
       localStorage.setItem(
         REGISTERED_DEVICES_KEY,
-        JSON.stringify(registeredDevices.value)
+        JSON.stringify(safeDevices)
       );
     } catch (e) {
       console.error("Failed to save registered devices:", e);
